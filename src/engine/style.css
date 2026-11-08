@@ -1,0 +1,66 @@
+:root {
+  --accent: #ffb347;
+  --font: "Avenir Next", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  --panel: rgba(8, 12, 20, 0.72);
+}
+html, body { margin: 0; height: 100%; overflow: hidden; background: #000; color: #f2f4f8; font-family: var(--font); }
+#app canvas { display: block; position: fixed; inset: 0; width: 100vw; height: 100vh; }
+#ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+#ui button, #ui .ui-screen.visible, #ui .ui-video { pointer-events: auto; }
+
+/* Loading screen */
+#loading { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: #05070b; transition: opacity 0.6s ease; }
+#loading.done { opacity: 0; pointer-events: none; }
+#loading .ld-title { font-size: 34px; font-weight: 300; letter-spacing: 0.04em; }
+#loading .ld-bar { width: min(420px, 70vw); height: 4px; background: rgba(255,255,255,0.12); border-radius: 2px; overflow: hidden; }
+#loading .ld-fill { width: 0; height: 100%; background: var(--accent); transition: width 0.2s ease; }
+#loading .ld-text { font-size: 13px; opacity: 0.6; }
+
+/* Screens */
+.ui-screen { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; transition: opacity 0.35s ease, visibility 0.35s; background: radial-gradient(ellipse at center, rgba(0,0,0,0.25), rgba(0,0,0,0.7)); background-size: cover; background-position: center; }
+.ui-screen.visible { opacity: 1; visibility: visible; }
+.ui-screen .panel { text-align: center; max-width: min(720px, 90vw); padding: 34px 44px; border-radius: 18px; background: var(--panel); backdrop-filter: blur(6px); box-shadow: 0 20px 60px rgba(0,0,0,0.45); }
+.ui-screen.with-image .panel { background: rgba(6, 9, 15, 0.55); }
+.ui-screen h1 { margin: 0 0 8px; font-size: clamp(34px, 6vw, 64px); font-weight: 300; letter-spacing: 0.02em; line-height: 1.05; }
+.ui-screen .subtitle { margin: 0 0 18px; font-size: 18px; opacity: 0.85; font-weight: 400; }
+.ui-screen .prompt { margin: 22px 0 0; font-size: 17px; color: var(--accent); animation: blink 1.4s ease-in-out infinite; }
+.ui-screen .stats { display: flex; gap: 26px; justify-content: center; margin: 16px 0 4px; flex-wrap: wrap; }
+.ui-screen .stat span { display: block; font-size: 13px; opacity: 0.7; }
+.ui-screen .stat b { font-size: 28px; font-weight: 500; }
+.ui-screen .controls { margin: 14px auto 0; display: grid; grid-template-columns: auto auto; gap: 6px 18px; text-align: left; font-size: 14px; max-width: 520px; }
+.ui-screen .controls .ctl { display: contents; }
+.ui-screen .controls .keys { color: var(--accent); font-weight: 600; white-space: nowrap; }
+.ui-screen .buttons { display: flex; gap: 12px; justify-content: center; margin-top: 16px; }
+.ui-screen button { font: inherit; font-size: 16px; color: #0b0d12; background: var(--accent); border: 0; border-radius: 999px; padding: 10px 22px; cursor: pointer; }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+/* HUD */
+.hud { position: absolute; inset: 0 0 auto 0; display: flex; justify-content: space-between; padding: 16px 20px; font-size: 15px; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+.hud > div { display: flex; flex-direction: column; gap: 6px; min-width: 160px; }
+.hud-center { align-items: center; }
+.hud-right { align-items: flex-end; }
+.hud-item { display: flex; gap: 8px; align-items: baseline; }
+.hud-item .l { opacity: 0.75; font-size: 13px; }
+.hud-item .v { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.hud-item.bump .v { animation: bump 0.25s ease-out; }
+.hud-bar .track { width: 160px; height: 8px; background: rgba(255,255,255,0.18); border-radius: 4px; overflow: hidden; align-self: center; }
+.hud-bar .fill { height: 100%; transition: width 0.15s linear; }
+@keyframes bump { 0% { transform: scale(1.35); } 100% { transform: scale(1); } }
+
+/* Feedback */
+.ui-banner { position: absolute; top: 34%; left: 0; right: 0; text-align: center; font-size: clamp(30px, 6vw, 70px); font-weight: 700; letter-spacing: 0.03em; color: #fff; text-shadow: 0 4px 24px rgba(0,0,0,0.7); opacity: 0; transform: scale(0.85); transition: opacity 0.25s ease, transform 0.25s ease; }
+.ui-banner.visible { opacity: 1; transform: scale(1); }
+.ui-toasts { position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.ui-toast { padding: 8px 16px; border-radius: 10px; background: rgba(8,12,20,0.8); border-left: 3px solid var(--accent); font-size: 15px; transition: opacity 0.4s ease, transform 0.4s ease; }
+.ui-toast.out { opacity: 0; transform: translateY(8px); }
+.ui-flash, .ui-fade { position: absolute; inset: 0; opacity: 0; }
+.ui-fade { background: #000; }
+.fx-float { position: absolute; left: 0; top: 0; font-weight: 700; text-shadow: 0 2px 6px rgba(0,0,0,0.8); white-space: nowrap; will-change: transform; }
+
+/* Video cutscenes */
+.ui-video { position: absolute; inset: 0; background: #000; z-index: 40; display: flex; align-items: center; justify-content: center; }
+.ui-video video { width: 100%; height: 100%; object-fit: contain; }
+.ui-video-hint { position: absolute; bottom: 18px; right: 24px; font-size: 13px; opacity: 0.6; }
+
+/* Errors */
+#error-panel { position: fixed; left: 12px; bottom: 12px; z-index: 100; max-width: 60vw; padding: 10px 12px; border-radius: 8px; background: rgba(120, 10, 10, 0.88); color: #fff; font: 12px/1.4 ui-monospace, Menlo, monospace; white-space: pre-wrap; }

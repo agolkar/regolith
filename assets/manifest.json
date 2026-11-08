@@ -1,0 +1,225 @@
+{
+ "version": 1,
+ "assets": [
+  {
+   "id": "key_art",
+   "kind": "keyart",
+   "w": 1280,
+   "h": 720,
+   "use": "Title screen background and first frame of the intro video.",
+   "src": "assets/img/key_art.jpg"
+  },
+  {
+   "id": "tex_regolith",
+   "kind": "texture",
+   "w": 1024,
+   "h": 1024,
+   "use": "Ground material for engine.terrain.create(), tiled across the 250 m basin.",
+   "src": "assets/img/tex_regolith.jpg"
+  },
+  {
+   "id": "tex_regolith_normal",
+   "kind": "normal",
+   "w": 1024,
+   "h": 1024,
+   "use": "Ground material for engine.terrain.create(), tiled across the 250 m basin.",
+   "src": "assets/img/tex_regolith_normal.png"
+  },
+  {
+   "id": "tex_regolith_rough",
+   "kind": "roughness",
+   "w": 1024,
+   "h": 1024,
+   "use": "Ground material for engine.terrain.create(), tiled across the 250 m basin.",
+   "src": "assets/img/tex_regolith_rough.jpg"
+  },
+  {
+   "id": "tex_rock",
+   "kind": "texture",
+   "w": 1024,
+   "h": 1024,
+   "use": "Instanced boulder meshes and crater-rim rock material.",
+   "src": "assets/img/tex_rock.jpg"
+  },
+  {
+   "id": "tex_rock_normal",
+   "kind": "normal",
+   "w": 1024,
+   "h": 1024,
+   "use": "Instanced boulder meshes and crater-rim rock material.",
+   "src": "assets/img/tex_rock_normal.png"
+  },
+  {
+   "id": "tex_rock_rough",
+   "kind": "roughness",
+   "w": 1024,
+   "h": 1024,
+   "use": "Instanced boulder meshes and crater-rim rock material.",
+   "src": "assets/img/tex_rock_rough.jpg"
+  },
+  {
+   "id": "tex_metal",
+   "kind": "texture",
+   "w": 1024,
+   "h": 1024,
+   "use": "HELIOS-1 rover chassis, hopper, mast and printer gantry PBR metal.",
+   "src": "assets/img/tex_metal.jpg"
+  },
+  {
+   "id": "tex_metal_normal",
+   "kind": "normal",
+   "w": 1024,
+   "h": 1024,
+   "use": "HELIOS-1 rover chassis, hopper, mast and printer gantry PBR metal.",
+   "src": "assets/img/tex_metal_normal.png"
+  },
+  {
+   "id": "tex_metal_rough",
+   "kind": "roughness",
+   "w": 1024,
+   "h": 1024,
+   "use": "HELIOS-1 rover chassis, hopper, mast and printer gantry PBR metal.",
+   "src": "assets/img/tex_metal_rough.jpg"
+  },
+  {
+   "id": "tex_ceramic",
+   "kind": "texture",
+   "w": 1024,
+   "h": 1024,
+   "use": "Printed habitat dome, solar frame and life-support tank material.",
+   "src": "assets/img/tex_ceramic.jpg"
+  },
+  {
+   "id": "tex_ceramic_normal",
+   "kind": "normal",
+   "w": 1024,
+   "h": 1024,
+   "use": "Printed habitat dome, solar frame and life-support tank material.",
+   "src": "assets/img/tex_ceramic_normal.png"
+  },
+  {
+   "id": "tex_ceramic_rough",
+   "kind": "roughness",
+   "w": 1024,
+   "h": 1024,
+   "use": "Printed habitat dome, solar frame and life-support tank material.",
+   "src": "assets/img/tex_ceramic_rough.jpg"
+  },
+  {
+   "id": "spr_earth",
+   "kind": "sprite",
+   "w": 259,
+   "h": 423,
+   "coverage": 0.148,
+   "use": "Earth sprite in the black sky above the horizon.",
+   "src": "assets/img/spr_earth.png"
+  },
+  {
+   "id": "spr_lander",
+   "kind": "sprite",
+   "w": 349,
+   "h": 404,
+   "coverage": 0.128,
+   "use": "Earth resupply lander prop and its crate pickup.",
+   "src": "assets/img/spr_lander.png"
+  },
+  {
+   "id": "vo_start",
+   "kind": "voice",
+   "duration": 3.56,
+   "text": "Mission control, you have the conn. Build us a home.",
+   "src": "assets/audio/vo_start.mp3"
+  },
+  {
+   "id": "vo_scoop",
+   "kind": "voice",
+   "duration": 2.59,
+   "text": "Scoop engaged. Regolith inbound.",
+   "src": "assets/audio/vo_scoop.mp3"
+  },
+  {
+   "id": "vo_feedstock",
+   "kind": "voice",
+   "duration": 2.8,
+   "text": "Feedstock ready. Printer standing by.",
+   "src": "assets/audio/vo_feedstock.mp3"
+  },
+  {
+   "id": "vo_print",
+   "kind": "voice",
+   "duration": 2.95,
+   "text": "Printing module. Keep the feedstock coming.",
+   "src": "assets/audio/vo_print.mp3"
+  },
+  {
+   "id": "vo_meteor",
+   "kind": "voice",
+   "duration": 3.29,
+   "text": "Micrometeoroid swarm. Brace for impact.",
+   "src": "assets/audio/vo_meteor.mp3"
+  },
+  {
+   "id": "vo_flare",
+   "kind": "voice",
+   "duration": 2.83,
+   "text": "Solar flare. Seek shadow. Now.",
+   "src": "assets/audio/vo_flare.mp3"
+  },
+  {
+   "id": "vo_resupply",
+   "kind": "voice",
+   "duration": 3.44,
+   "text": "Earth resupply inbound. It costs independence.",
+   "src": "assets/audio/vo_resupply.mp3"
+  },
+  {
+   "id": "vo_lowpower",
+   "kind": "voice",
+   "duration": 2.56,
+   "text": "Power critical. Get into sunlight.",
+   "src": "assets/audio/vo_lowpower.mp3"
+  },
+  {
+   "id": "vo_win",
+   "kind": "voice",
+   "duration": 2.6,
+   "text": "Independence achieved. The Moon is home.",
+   "src": "assets/audio/vo_win.mp3"
+  },
+  {
+   "id": "vo_fail",
+   "kind": "voice",
+   "duration": 2.51,
+   "text": "Base power lost. Mission failure.",
+   "src": "assets/audio/vo_fail.mp3"
+  },
+  {
+   "id": "intro",
+   "kind": "video",
+   "duration": 5.04,
+   "use": "Before the first run only; falls back to the key-art still with vo_start.",
+   "src": "assets/video/intro.mp4"
+  },
+  {
+   "id": "victory",
+   "kind": "video",
+   "duration": 5.04,
+   "use": "Victory cutscene when independence reaches 100%.",
+   "src": "assets/video/victory.mp4"
+  },
+  {
+   "id": "gameover",
+   "kind": "video",
+   "duration": 5.04,
+   "use": "Game-over cutscene on integrity or power failure.",
+   "src": "assets/video/gameover.mp4"
+  },
+  {
+   "id": "music_main",
+   "kind": "music",
+   "duration": 6.81,
+   "use": "Loop during play.",
+   "src": "assets/audio/music_main.mp3"
+  }
+ ]
+}

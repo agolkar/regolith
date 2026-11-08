@@ -1,0 +1,68 @@
+{
+ "title": "Regolith",
+ "logline": "Scoop the dust, sinter the feedstock, print a home — and cut the cord to Earth.",
+ "slug": "regolith",
+ "controls": [
+  {
+   "action": "Drive",
+   "keys": [
+    "KeyW",
+    "KeyA",
+    "KeyS",
+    "KeyD",
+    "ArrowUp",
+    "ArrowLeft",
+    "ArrowDown",
+    "ArrowRight"
+   ],
+   "label": "W A S D / arrows"
+  },
+  {
+   "action": "Boost",
+   "keys": [
+    "ShiftLeft"
+   ],
+   "label": "Shift"
+  },
+  {
+   "action": "Scoop",
+   "keys": [
+    "Space"
+   ],
+   "label": "Space"
+  },
+  {
+   "action": "Print module",
+   "keys": [
+    "Enter"
+   ],
+   "label": "Enter"
+  },
+  {
+   "action": "Select module",
+   "keys": [
+    "Digit1",
+    "Digit2",
+    "Digit3"
+   ],
+   "label": "1 dome / 2 solar / 3 life support"
+  },
+  {
+   "action": "Restart",
+   "keys": [
+    "KeyR"
+   ],
+   "label": "R"
+  },
+  {
+   "action": "Pause / mute",
+   "keys": [
+    "KeyP",
+    "KeyM"
+   ],
+   "label": "P / M"
+  }
+ ],
+ "start_key": "Enter",
+ "concept_by": "Max"
+}

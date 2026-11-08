@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Regolith</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="src/engine/style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three/build/three.module.js",
+    "three/addons/": "./vendor/three/examples/jsm/",
+    "three/examples/jsm/": "./vendor/three/examples/jsm/",
+    "cannon-es": "./vendor/cannon-es/cannon-es.js"
+  }
+}
+</script>
+</head>
+<body>
+<div id="app"></div>
+<div id="loading"><div class="ld-title">Loading</div><div class="ld-bar"><div class="ld-fill"></div></div><div class="ld-text">Preparing the world</div></div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
