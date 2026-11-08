@@ -281,6 +281,7 @@ export function createRover(engine, world, CONFIG) {
   let slopeShakeTimer = 0;
   let scoopTickTimer = 0;
   let scoopDeposit = null;      // deposit currently being scooped
+  let scoopInRange = false;     // a deposit with regolith left is within scoop reach
   let loadDamaged = false;      // damage during the current load
   let loadActive = false;       // a load is in progress
   let cleanCycle = false;       // one-shot flag for game to consume
@@ -399,6 +400,15 @@ export function createRover(engine, world, CONFIG) {
     const wantBoost = input.down(['ShiftLeft', 'ShiftRight']);
     const wantScoop = input.down('Space');
 
+    // ---- scoop reach (measured from the mound edge)
+    let scoopNear = null;
+    if (deposits && typeof deposits.nearest === 'function') {
+      try { scoopNear = deposits.nearest(position, S.range); } catch (e) { scoopNear = null; }
+    }
+    scoopInRange = !!scoopNear;
+    // Holding Space next to a mound brakes the rover so the scoop can engage.
+    const scoopBrake = wantScoop && scoopInRange && hopper < S.hopperCapacity;
+
     // ---- battery gates
     const canBoost = wantBoost && battery > R.boostMinBattery;
     boosting = canBoost && driveAxis !== 0;
@@ -425,7 +435,8 @@ export function createRover(engine, world, CONFIG) {
     }
 
     // ---- integrate speed and heading
-    speed = damp(speed, targetSpeed, R.accel, dt);
+    if (scoopBrake) targetSpeed = 0;
+    speed = damp(speed, targetSpeed, scoopBrake ? R.accel * 3 : R.accel, dt);
     if (Math.abs(speed) < 0.02) speed = 0;
     heading -= turnAxis * R.turnRate * dt;
 
@@ -490,7 +501,7 @@ export function createRover(engine, world, CONFIG) {
     scooping = false;
     if (wantScoop && Math.abs(speed) < S.maxSpeed) {
       if (!scoopDeposit && deposits) {
-        const near = deposits.nearest(position, S.range);
+        const near = scoopNear || deposits.nearest(position, S.range);
         if (near) {
           scoopDeposit = near;
           loadActive = true;
@@ -663,6 +674,7 @@ export function createRover(engine, world, CONFIG) {
     slopeShakeTimer = 0;
     scoopTickTimer = 0;
     scoopDeposit = null;
+    scoopInRange = false;
     loadDamaged = false;
     loadActive = false;
     cleanCycle = false;
@@ -695,6 +707,9 @@ export function createRover(engine, world, CONFIG) {
     position,
     get battery() {
       return battery;
+    },
+    get scoopInRange() {
+      return scoopInRange;
     },
     get hopper() {
       return hopper;

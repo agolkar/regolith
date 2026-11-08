@@ -17,8 +17,8 @@ const _tmp = new THREE.Vector3();
 const _tmp2 = new THREE.Vector3();
 const _scale = new THREE.Vector3();
 
-// Interaction radius of a deposit (metres) — used by guidance and the scoop range.
-const DEPOSIT_RADIUS = 3;
+// Scoop reach is measured from the mound's edge (its footprint), never from its
+// centre: a rover touching the mound must always be able to scoop.
 
 export function createDeposits(engine, world, CONFIG) {
   const { scene, assets, fx, rng } = engine;
@@ -54,7 +54,8 @@ export function createDeposits(engine, world, CONFIG) {
   // ---------------------------------------------------------------- permanent ring markers
   // Thin flat ring around each mound, added to the mound group and removed with it on
   // depletion. Two shared materials (cyan normal, gold rich). Always visible.
-  const markerGeo = new THREE.RingGeometry(2.6, 3.0, 40);
+  // Sits just outside the mound base (local frame, scaled with the mound).
+  const markerGeo = new THREE.RingGeometry(D.moundRadius + 0.25, D.moundRadius + 0.6, 48);
   const markerNormalMat = new THREE.MeshBasicMaterial({
     color: 0x00e5ff,
     transparent: true,
@@ -186,10 +187,12 @@ export function createDeposits(engine, world, CONFIG) {
       capacity,
       remaining: capacity,
       rich: !!rich,
-      radius: DEPOSIT_RADIUS,
+      radius: D.moundRadius * s + CONFIG.scoop.range,
       material: mat,
       sunlit,
       baseScale: s,
+      // Ground radius of the mound base; scoop reach is footprint + scoop.range.
+      footprint: D.moundRadius * s,
       // Guidance helper: true when the mound sits in shadow.
       isInShadow: !sunlit,
     };
@@ -252,36 +255,45 @@ export function createDeposits(engine, world, CONFIG) {
     let radius = CONFIG.scoop.range;
     let requireRemaining = true;
     let preferSunlit = false;
+    // radius is measured from the mound edge; Infinity means "any distance".
+    const okRadius = (r) => typeof r === 'number' && !Number.isNaN(r) && r >= 0;
     if (typeof optsOrRadius === 'number') {
-      if (Number.isFinite(optsOrRadius)) radius = optsOrRadius;
+      if (okRadius(optsOrRadius)) radius = optsOrRadius;
     } else if (optsOrRadius && typeof optsOrRadius === 'object') {
-      if (Number.isFinite(optsOrRadius.radius)) radius = optsOrRadius.radius;
+      if (okRadius(optsOrRadius.radius)) radius = optsOrRadius.radius;
       if (optsOrRadius.requireRemaining === false) requireRemaining = false;
       if (optsOrRadius.preferSunlit === true) preferSunlit = true;
     }
-    const r2 = radius * radius;
     let best = null;
-    let bestD2 = r2;
+    let bestEdge = Infinity;
     let bestSun = null;
-    let bestSunD2 = r2;
+    let bestSunEdge = Infinity;
     for (let i = 0; i < list.length; i++) {
       const d = list[i];
       if (!d) continue;
       if (requireRemaining && d.remaining <= 0) continue;
-      const dx = d.position.x - position.x;
-      const dz = d.position.z - position.z;
-      const d2 = dx * dx + dz * dz;
-      if (d2 <= bestD2) {
-        bestD2 = d2;
+      const edge = edgeDistance(d, position);
+      if (edge > radius) continue;
+      if (edge < bestEdge) {
+        bestEdge = edge;
         best = d;
       }
-      if (d.sunlit && d2 <= bestSunD2) {
-        bestSunD2 = d2;
+      if (d.sunlit && edge < bestSunEdge) {
+        bestSunEdge = edge;
         bestSun = d;
       }
     }
     if (preferSunlit && bestSun) return bestSun;
     return best;
+  }
+
+  // Distance (m, XZ) from a position to the edge of a deposit's mound; 0 when on it.
+  function edgeDistance(d, position) {
+    if (!d || !position) return Infinity;
+    const dx = d.position.x - position.x;
+    const dz = d.position.z - position.z;
+    const fp = Number.isFinite(d.footprint) ? d.footprint : D.moundRadius;
+    return Math.max(0, Math.sqrt(dx * dx + dz * dz) - fp);
   }
 
   // Nearest deposit regardless of remaining (for guidance / the beacon).
@@ -350,6 +362,7 @@ export function createDeposits(engine, world, CONFIG) {
     const frac = clamp(deposit.remaining / deposit.capacity, 0, 1);
     const s = deposit.baseScale * (0.35 + 0.65 * frac);
     deposit.mesh.scale.set(s, Math.max(0.3, 0.35 + 0.65 * frac), s);
+    deposit.footprint = D.moundRadius * s;
 
     if (deposit.remaining <= 0) {
       removeDeposit(deposit);
@@ -483,6 +496,7 @@ export function createDeposits(engine, world, CONFIG) {
     nearest,
     nearestAny,
     nearestWithRemaining,
+    edgeDistance,
     take,
     update,
     reset,

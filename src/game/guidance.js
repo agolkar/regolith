@@ -2,7 +2,13 @@
 // HUD "Next:" line, off-screen edge arrow, tutorial toasts and the G toggle.
 
 import * as THREE from 'three';
-import { distXZ } from '../engine/util.js';
+
+// XZ distance between two points given as four numbers.
+function distXZ(ax, az, bx, bz) {
+  const dx = ax - bx;
+  const dz = az - bz;
+  return Math.sqrt(dx * dx + dz * dz);
+}
 
 const BEAM_HEIGHT = 40;
 const BEAM_RADIUS = 0.5;
@@ -34,13 +40,13 @@ const OBJ_CSS = {
 };
 
 const OBJ_RING_RADIUS = {
-  deposit: 3,
+  deposit: 4.6,
   plant: 4,
   gantry: 4,
 };
 
 const TUTORIAL_TEXT = {
-  0: 'Drive to the cyan beacon and hold Space to scoop',
+  0: 'Drive up to the mound under the cyan beam and hold Space to scoop',
   1: 'Hopper full: drive to the amber beacon, the sintering plant',
   2: 'Feedstock ready: drive to the green beacon and press Enter to print',
 };
@@ -312,7 +318,16 @@ export function createGuidance(engine, CONFIG, world, deposits, base, rover) {
     target = resolved;
     objective = kind;
     if (rp) {
-      objectiveDistance = Math.round(distXZ(finite(rp.x, 0), finite(rp.z, 0), p.x, p.z));
+      // Distance still to cover before the action works: deposits count from the
+      // edge of the scoop reach, the plant from its unload radius.
+      let d = distXZ(finite(rp.x, 0), finite(rp.z, 0), p.x, p.z);
+      if (kind === OBJ_DEPOSIT) {
+        const fp = Number.isFinite(resolved.footprint) ? resolved.footprint : 3.2;
+        d -= fp + finite(CONFIG.scoop && CONFIG.scoop.range, 3);
+      } else if (kind === OBJ_PLANT) {
+        d -= finite(CONFIG.plant && CONFIG.plant.range, 4);
+      }
+      objectiveDistance = Math.max(0, Math.round(d));
     } else {
       objectiveDistance = 0;
     }
@@ -389,7 +404,7 @@ export function createGuidance(engine, CONFIG, world, deposits, base, rover) {
       try {
         const el = document.createElement('div');
         el.style.position = 'absolute';
-        el.style.top = '8px';
+        el.style.top = '104px';
         el.style.left = '50%';
         el.style.transform = 'translateX(-50%)';
         el.style.font = '600 16px/1.2 monospace';
@@ -416,7 +431,13 @@ export function createGuidance(engine, CONFIG, world, deposits, base, rover) {
     }
     const action = OBJ_TEXT[objective] || OBJ_TEXT.deposit;
     const dist = Number.isFinite(objectiveDistance) ? Math.round(objectiveDistance) : 0;
-    nextEl.textContent = 'Next: ' + action + ' (' + dist + ' m)';
+    if (dist <= 0 && objective === OBJ_DEPOSIT) {
+      nextEl.textContent = 'In range: hold Space to scoop';
+    } else if (dist <= 0 && objective === OBJ_PLANT) {
+      nextEl.textContent = 'In range: unloading at the plant';
+    } else {
+      nextEl.textContent = 'Next: ' + action + ' (' + dist + ' m)';
+    }
     nextEl.style.display = 'block';
   }
 

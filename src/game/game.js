@@ -214,7 +214,7 @@ export function createGame(engine) {
         lookAt: CONFIG.camera.lookAt,
         stiffness: CONFIG.camera.stiffness,
         rotate: true,
-        lookAhead: 0,
+        lookAhead: CONFIG.camera.lookAhead || 0,
       });
     } catch (e) { /* camera is best-effort */ }
     try { env.followShadow(rover.group); } catch (e) { /* ignore */ }
@@ -230,7 +230,7 @@ export function createGame(engine) {
     _camOffset.set(
       CONFIG.camera.offset[0],
       CONFIG.camera.offset[1],
-      CONFIG.camera.offset[2] - s.printPullBack,
+      CONFIG.camera.offset[2] + Math.sign(CONFIG.camera.offset[2] || 1) * s.printPullBack,
     );
     try {
       cam.follow(rover.group, {
@@ -238,7 +238,7 @@ export function createGame(engine) {
         lookAt: CONFIG.camera.lookAt,
         stiffness: CONFIG.camera.stiffness,
         rotate: true,
-        lookAhead: 0,
+        lookAhead: CONFIG.camera.lookAhead || 0,
       });
     } catch (e) { /* ignore */ }
   }
@@ -246,18 +246,30 @@ export function createGame(engine) {
   // ---------------------------------------------------------------- spawn helpers
   function spawnInitialDeposits() {
     if (!deposits) return;
-    // First normal deposit 15 m directly ahead of the rover start.
-    // Rover forward is local -Z; at yaw 0 that is world -Z.
+    const rng = engine.rng;
+    const rr = (a, b) => (rng && typeof rng.range === 'function' ? rng.range(a, b) : a + Math.random() * (b - a));
+    // First normal deposit ahead of the rover start, at a random bearing within
+    // the camera's view (rover forward is world -Z at yaw 0), so it moves every run.
     const startX = CONFIG.rover.startX;
     const startZ = CONFIG.rover.startZ;
-    deposits.spawnNormal(startX, startZ - CONFIG.deposits.firstDepositDist);
-    // Remaining normal deposits around the plant.
+    const a0 = rr(-0.55, 0.55);
+    const d0 = rr(CONFIG.deposits.firstDepositDist, CONFIG.deposits.firstDepositDist + 7);
+    deposits.spawnNormal(startX + Math.sin(a0) * d0, startZ - Math.cos(a0) * d0);
+    // Remaining normal deposits around the plant, with a random rotation and jitter.
     const px = CONFIG.plant.position.x;
     const pz = CONFIG.plant.position.z;
+    const playR = (world && world.terrain && Number.isFinite(world.terrain.playRadius))
+      ? world.terrain.playRadius : 125;
+    const spin = rr(0, Math.PI * 2);
     for (let i = 1; i < CONFIG.deposits.normalCount; i++) {
-      const a = (i / CONFIG.deposits.normalCount) * Math.PI * 2 + 0.3;
-      const d = lerp(CONFIG.deposits.normalMinDist, CONFIG.deposits.normalMaxDist, (i % 3) / 2);
-      deposits.spawnNormal(px + Math.sin(a) * d, pz + Math.cos(a) * d);
+      const a = (i / CONFIG.deposits.normalCount) * Math.PI * 2 + spin + rr(-0.25, 0.25);
+      const d = rr(CONFIG.deposits.normalMinDist, CONFIG.deposits.normalMaxDist);
+      let x = px + Math.sin(a) * d;
+      let z = pz + Math.cos(a) * d;
+      const r = Math.hypot(x, z);
+      const maxR = playR - CONFIG.deposits.moundRadius - 6;
+      if (r > maxR) { x *= maxR / r; z *= maxR / r; }
+      deposits.spawnNormal(x, z);
     }
     // Rich deposits in shadow near the crater rim.
     for (let i = 0; i < CONFIG.deposits.richCount; i++) {
@@ -532,6 +544,18 @@ export function createGame(engine) {
 
     // ---- rover
     if (rover) rover.update(dt, input, deposits);
+
+    // ---- Space pressed out of scoop reach: say how far the nearest mound is.
+    if (rover && deposits && input.pressed('Space') && !rover.scoopInRange
+        && s.hopper < CONFIG.scoop.hopperCapacity) {
+      try {
+        const d = deposits.nearest(rover.position, Infinity);
+        if (d && typeof deposits.edgeDistance === 'function') {
+          const m = Math.max(1, Math.round(deposits.edgeDistance(d, rover.position) - CONFIG.scoop.range));
+          toast('Too far from regolith: drive ' + m + ' m closer to the mound', { ms: 1800 });
+        }
+      } catch (e) { /* hint is best-effort */ }
+    }
 
     // ---- deposits
     if (deposits) deposits.update(dt);
@@ -817,6 +841,7 @@ export function createGame(engine) {
         integrity: s.integrity,
         hopper: s.hopper,
         feedstock: s.feedstock,
+        scoopInRange: !!(rover && rover.scoopInRange),
         combo: s.combo,
         selectedModule: s.selectedModule,
         printing: s.printing,

@@ -29,7 +29,7 @@ const OBJECTIVE_STEPS = [
 ];
 
 // Text shown when the rover is right on top of the first deposit.
-const SCOOP_ASSIST_TEXT = 'STOP AND HOLD SPACE TO SCOOP';
+const SCOOP_ASSIST_TEXT = 'IN RANGE: HOLD SPACE TO SCOOP';
 const SCOOP_ASSIST_RADIUS = 6;          // m from the first deposit centre
 const SCOOP_ASSIST_PULSE_HZ = 2.2;      // banner pulse rate
 
@@ -223,15 +223,10 @@ export function createHud(engine, CONFIG) {
       objectiveText = OBJECTIVE_STEPS[clamped];
       // First scoop: swap to the assist line when the rover is on the deposit.
       if (clamped === 0) {
-        const px = s.player && Number.isFinite(s.player.x) ? s.player.x : NaN;
-        const pz = s.player && Number.isFinite(s.player.z) ? s.player.z : NaN;
-        const dx = s.firstDeposit && Number.isFinite(s.firstDeposit.x) ? s.firstDeposit.x : NaN;
-        const dz = s.firstDeposit && Number.isFinite(s.firstDeposit.z) ? s.firstDeposit.z : NaN;
-        if (Number.isFinite(px) && Number.isFinite(pz) && Number.isFinite(dx) && Number.isFinite(dz)) {
-          if (distXZ(px, pz, dx, dz) <= SCOOP_ASSIST_RADIUS) {
-            objectiveText = SCOOP_ASSIST_TEXT;
-            pulse = 1;
-          }
+        // In scoop reach (from the rover itself): swap to the pulsing assist line.
+        if (s.scoopInRange === true) {
+          objectiveText = SCOOP_ASSIST_TEXT;
+          pulse = 1;
         }
         // Hopper filled: advance to the haul step immediately.
         if (hopper > 0) {

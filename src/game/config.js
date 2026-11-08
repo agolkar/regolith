@@ -94,7 +94,7 @@ const CONFIG = Object.freeze({
     capacity: 600,                // kg feedstock held
     dumpKg: 200,                  // kg per dump
     dumpTime: 4,                  // s
-    range: 4,                     // m
+    range: 5.5,                   // m from plant centre (skirt radius 2.7 m)
     position: { x: 0, z: 28 },
   },
 
@@ -235,8 +235,9 @@ const CONFIG = Object.freeze({
 
   // ---------------------------------------------------------------- camera
   camera: {
-    offset: [0, 4, -9],           // behind and above (rover forward is -Z)
-    lookAt: [0, 1, 4],
+    offset: [0, 4, 9],            // behind and above (rover forward is local -Z, so behind is +Z)
+    lookAt: [0, 1.2, 0],          // world-space offset from the rover (the engine does not rotate it)
+    lookAhead: 0.25,              // s of velocity to look ahead of the rover
     stiffness: 6,
     printPullBack: 3,             // extra metres back while printing
     printPullBackStiffness: 2,
