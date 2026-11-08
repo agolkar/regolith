@@ -262,13 +262,21 @@ export function createRover(engine, world, CONFIG) {
   status.position.set(0.62, 1.9, -0.35);
   group.add(status);
 
+  // The model above is built facing local -Z. The rover drives toward local +Z,
+  // away from the chase camera, so the body is turned around inside the group.
+  const body = new THREE.Group();
+  body.name = 'rover-body';
+  while (group.children.length) body.add(group.children[0]);
+  body.rotation.y = Math.PI;
+  group.add(body);
+
   scene.add(group);
 
   // ---------------------------------------------------------------- state
   const position = new THREE.Vector3(R.startX, 0, R.startZ);
   position.y = world.terrain.heightAt(position.x, position.z) + R.bodyHalfHeight;
 
-  let heading = 0;              // yaw, radians; forward is local -Z
+  let heading = 0;              // yaw, radians; forward is local +Z (away from the camera)
   let speed = 0;                // signed m/s along heading
   let battery = B.max;
   let hopper = 0;
@@ -421,7 +429,7 @@ export function createRover(engine, world, CONFIG) {
     }
 
     // ---- slope rule
-    _forward.set(-Math.sin(heading), 0, -Math.cos(heading));
+    _forward.set(Math.sin(heading), 0, Math.cos(heading));
     const slope = slopeFactor(_forward.x, _forward.z);
     if (slope < 1) {
       targetSpeed *= slope;
@@ -441,8 +449,8 @@ export function createRover(engine, world, CONFIG) {
     heading -= turnAxis * R.turnRate * dt;
 
     // ---- integrate position (kinematic, terrain-following)
-    const vx = -Math.sin(heading) * speed;
-    const vz = -Math.cos(heading) * speed;
+    const vx = Math.sin(heading) * speed;
+    const vz = Math.cos(heading) * speed;
     position.x += vx * dt;
     position.z += vz * dt;
 
@@ -708,11 +716,18 @@ export function createRover(engine, world, CONFIG) {
     get battery() {
       return battery;
     },
+    get heading() {
+      return heading;
+    },
     get scoopInRange() {
       return scoopInRange;
     },
     get hopper() {
       return hopper;
+    },
+    // The plant drains the hopper while unloading.
+    set hopper(v) {
+      if (Number.isFinite(v)) hopper = clamp(v, 0, S.hopperCapacity);
     },
     get integrity() {
       return integrity;

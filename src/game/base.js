@@ -194,6 +194,10 @@ export function createBase(engine, world, CONFIG) {
     _dumpKg: 0,
     _dumpCombo: 1,
     _glowTimer: 0,
+    _produced: 0,                 // kg produced this frame, reported by base.update
+    get dumping() {
+      return plant._dumping;
+    },
     update(dt, rover, comboMultiplier) {
       if (!Number.isFinite(dt) || dt <= 0) return;
       const range = CONFIG.plant.range;
@@ -206,20 +210,21 @@ export function createBase(engine, world, CONFIG) {
       }
       const hopper = rover && Number.isFinite(rover.hopper) ? rover.hopper : 0;
 
-      // Start a dump when in range with a non-empty hopper.
-      if (!plant._dumping && inRange && hopper > 0) {
+      // Start a dump when in range with a non-empty hopper, or resume a paused one.
+      if (!plant._dumping && inRange && (hopper > 0 || plant._dumpKg > 0)) {
+        if (plant._dumpKg <= 0) {
+          plant._dumpProgress = 0;
+          plant._dumpKg = Math.min(CONFIG.plant.dumpKg, hopper);
+          plant._dumpCombo = Number.isFinite(comboMultiplier) ? clamp(comboMultiplier, 1, CONFIG.combo.max) : 1;
+        }
         plant._dumping = true;
-        plant._dumpProgress = 0;
-        plant._dumpKg = Math.min(CONFIG.plant.dumpKg, hopper);
-        plant._dumpCombo = Number.isFinite(comboMultiplier) ? clamp(comboMultiplier, 1, CONFIG.combo.max) : 1;
         effects.dumpGlow(plantPos);
       }
 
-      // Pause when the rover leaves mid-dump.
+      // Pause when the rover leaves mid-dump; progress and the regolith already
+      // unloaded are kept and the dump resumes when the rover comes back.
       if (plant._dumping && !inRange) {
         plant._dumping = false;
-        plant._dumpProgress = 0;
-        plant._dumpKg = 0;
       }
 
       if (plant._dumping) {
@@ -243,8 +248,8 @@ export function createBase(engine, world, CONFIG) {
           );
           if (produced > 0) {
             plant.feedstock = Math.min(CONFIG.plant.capacity, plant.feedstock + produced);
-            effects.floatFeedstock(plantPos, produced);
-            events.emit('feedstock', { kg: produced, total: plant.feedstock });
+            // game.js shows the float text, voice and toast from base.update's result.
+            plant._produced += produced;
           }
           plant._dumping = false;
           plant._dumpProgress = 0;
@@ -654,8 +659,12 @@ export function createBase(engine, world, CONFIG) {
   // ================================================================ UPDATE
   let pendingComplete = null;
 
-  function update(dt, rover) {
-    if (!Number.isFinite(dt) || dt <= 0) return { completedModule: null, resupply: null };
+  function update(dt, rover, comboMultiplier) {
+    if (!Number.isFinite(dt) || dt <= 0) return { completedModule: null, resupply: null, feedstockProduced: 0 };
+
+    // Sintering plant: unload the hopper when the rover is in range.
+    plant._produced = 0;
+    plant.update(dt, rover, comboMultiplier);
 
     // Printer advances; completion reported once.
     printer.update(dt);
@@ -712,7 +721,7 @@ export function createBase(engine, world, CONFIG) {
 
     const completedModule = pendingComplete;
     pendingComplete = null;
-    return { completedModule, resupply: resupplyResult };
+    return { completedModule, resupply: resupplyResult, feedstockProduced: plant._produced };
   }
 
   // ================================================================ RESET

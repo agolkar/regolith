@@ -232,10 +232,19 @@ export function createGame(engine) {
       CONFIG.camera.offset[1],
       CONFIG.camera.offset[2] + Math.sign(CONFIG.camera.offset[2] || 1) * s.printPullBack,
     );
+    // The engine adds lookAt in world space, so turn it with the rover heading
+    // to keep the start framing (rover in the foreground, terrain ahead) at any heading.
+    const h = Number.isFinite(rover.heading) ? rover.heading : 0;
+    const la = CONFIG.camera.lookAt;
+    const lookAt = [
+      la[0] * Math.cos(h) + la[2] * Math.sin(h),
+      la[1],
+      -la[0] * Math.sin(h) + la[2] * Math.cos(h),
+    ];
     try {
       cam.follow(rover.group, {
         offset: [_camOffset.x, _camOffset.y, _camOffset.z],
-        lookAt: CONFIG.camera.lookAt,
+        lookAt,
         stiffness: CONFIG.camera.stiffness,
         rotate: true,
         lookAhead: CONFIG.camera.lookAhead || 0,
@@ -248,13 +257,14 @@ export function createGame(engine) {
     if (!deposits) return;
     const rng = engine.rng;
     const rr = (a, b) => (rng && typeof rng.range === 'function' ? rng.range(a, b) : a + Math.random() * (b - a));
-    // First normal deposit ahead of the rover start, at a random bearing within
-    // the camera's view (rover forward is world -Z at yaw 0), so it moves every run.
+    // First normal deposit ahead of the rover start (forward is world +Z at yaw 0),
+    // inside the camera's view and off to one side of the plant, at a random bearing
+    // and distance so it moves every run.
     const startX = CONFIG.rover.startX;
     const startZ = CONFIG.rover.startZ;
-    const a0 = rr(-0.55, 0.55);
-    const d0 = rr(CONFIG.deposits.firstDepositDist, CONFIG.deposits.firstDepositDist + 7);
-    deposits.spawnNormal(startX + Math.sin(a0) * d0, startZ - Math.cos(a0) * d0);
+    const a0 = (rr(0, 1) < 0.5 ? -1 : 1) * rr(0.3, 0.65);
+    const d0 = rr(CONFIG.deposits.firstDepositDist - 1, CONFIG.deposits.firstDepositDist + 5);
+    deposits.spawnNormal(startX + Math.sin(a0) * d0, startZ + Math.cos(a0) * d0);
     // Remaining normal deposits around the plant, with a random rotation and jitter.
     const px = CONFIG.plant.position.x;
     const pz = CONFIG.plant.position.z;
@@ -551,7 +561,7 @@ export function createGame(engine) {
       try {
         const d = deposits.nearest(rover.position, Infinity);
         if (d && typeof deposits.edgeDistance === 'function') {
-          const m = Math.max(1, Math.round(deposits.edgeDistance(d, rover.position) - CONFIG.scoop.range));
+          const m = Math.max(1, Math.ceil(deposits.edgeDistance(d, rover.position) - CONFIG.scoop.range));
           toast('Too far from regolith: drive ' + m + ' m closer to the mound', { ms: 1800 });
         }
       } catch (e) { /* hint is best-effort */ }
@@ -609,14 +619,16 @@ export function createGame(engine) {
 
     // ---- boost feedback
     if (rover && rover.isBoosting()) {
-      _dir.set(-Math.sin(rover.group.rotation.y), 0, -Math.cos(rover.group.rotation.y));
+      // Trail behind the rover (forward is +Z at heading 0).
+      const h = Number.isFinite(rover.heading) ? rover.heading : 0;
+      _dir.set(-Math.sin(h), 0, -Math.cos(h));
       if (effects) effects.boostTrail(rover.position, _dir);
     }
 
     // ---- base (dump, print, resupply)
     let baseResult = { completedModule: null, resupply: null };
     if (base) {
-      baseResult = base.update(dt, rover) || baseResult;
+      baseResult = base.update(dt, rover, s.combo) || baseResult;
     }
 
     // ---- dump feedback

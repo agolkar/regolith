@@ -194,9 +194,12 @@ export function createGuidance(engine, CONFIG, world, deposits, base, rover) {
       if (base.printerIdle === true) return true;
       if (base.printerIdle === false) return false;
       if (base.state && typeof base.state.printing === 'boolean') return base.state.printing === false;
-      if (base.printer && base.printer.printing) {
-        if (typeof base.printer.printing === 'boolean') return !base.printer.printing;
-        if (typeof base.printer.printing.active === 'boolean') return !base.printer.printing.active;
+      if (base.printer) {
+        // printer.printing is null when idle, a job object while printing.
+        const job = base.printer.printing;
+        if (!job) return true;
+        if (typeof job === 'boolean') return !job;
+        if (typeof job.active === 'boolean') return !job.active;
       }
     }
     return false;
@@ -327,7 +330,8 @@ export function createGuidance(engine, CONFIG, world, deposits, base, rover) {
       } else if (kind === OBJ_PLANT) {
         d -= finite(CONFIG.plant && CONFIG.plant.range, 4);
       }
-      objectiveDistance = Math.max(0, Math.round(d));
+      // Round up so 0 m (and the "In range" line) only shows once the action works.
+      objectiveDistance = Math.max(0, Math.ceil(d));
     } else {
       objectiveDistance = 0;
     }

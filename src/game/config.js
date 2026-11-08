@@ -235,9 +235,8 @@ const CONFIG = Object.freeze({
 
   // ---------------------------------------------------------------- camera
   camera: {
-    offset: [0, 4, 9],            // behind and above (rover forward is local -Z, so behind is +Z)
-    lookAt: [0, 1.2, 0],          // world-space offset from the rover (the engine does not rotate it)
-    lookAhead: 0.25,              // s of velocity to look ahead of the rover
+    offset: [0, 4, -9],           // behind and above (rover forward is local +Z)
+    lookAt: [0, 1, 4],            // ahead of the rover; game.js turns it with the rover heading
     stiffness: 6,
     printPullBack: 3,             // extra metres back while printing
     printPullBackStiffness: 2,
