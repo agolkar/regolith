@@ -1,5 +1,6 @@
 // Regolith — HUD layout and updates.
 // Owns every HUD key, label, banner and toast. Uses only engine.ui.
+// The top-centre objective line ("Next: ...") is owned by guidance.js, not here.
 
 import { CONFIG } from './config.js';
 
@@ -76,7 +77,7 @@ export function createHud(engine, CONFIG) {
     lastFeedstockText: '',
     lastPowerText: '',
     lastIntegrityText: '',
-    // objective banner
+    // objective banner (left/right side strip; never top-centre)
     objectiveIndex: -1,
     objectiveText: '',
     objectiveDone: false,
@@ -123,6 +124,7 @@ export function createHud(engine, CONFIG) {
   // ---------------------------------------------------------------- objective
   // Single source of truth: objectiveText is computed each frame from state.
   // step: 0-based index into OBJECTIVE_STEPS, or -1 to hide the strip.
+  // Rendered on the left side so it never overlaps the top-centre guidance line.
   function setObjectiveText(step, text, done, pulse) {
     const idx = Number.isFinite(step) ? Math.floor(step) : -1;
     if (idx < 0 || typeof text !== 'string' || text.length === 0) {
@@ -140,7 +142,7 @@ export function createHud(engine, CONFIG) {
     const counter = 'STEP ' + (clamped + 1) + '/' + OBJECTIVE_STEPS.length;
     const full = counter + '  ·  ' + text + (done ? '  ✓' : '');
     if (full !== state.objectiveText) {
-      hud.set('objective', full, { label: 'OBJECTIVE', side: 'center' });
+      hud.set('objective', full, { label: 'OBJECTIVE', side: 'left' });
       state.objectiveText = full;
       state.objectiveIndex = clamped;
     }
@@ -173,7 +175,7 @@ export function createHud(engine, CONFIG) {
       if (state.objectivePulseOn) {
         state.objectivePulseOn = false;
         if (state.objectiveText !== '') {
-          hud.set('objective', state.objectiveText, { label: 'OBJECTIVE', side: 'center' });
+          hud.set('objective', state.objectiveText, { label: 'OBJECTIVE', side: 'left' });
         }
       }
       return;
@@ -185,7 +187,7 @@ export function createHud(engine, CONFIG) {
       if (state.objectiveText !== '') {
         hud.set('objective', phase ? '▶ ' + state.objectiveText + ' ◀' : state.objectiveText, {
           label: 'OBJECTIVE',
-          side: 'center',
+          side: 'left',
         });
       }
     }
@@ -417,6 +419,8 @@ export function createHud(engine, CONFIG) {
     state.objectivePulseOn = false;
     state.activeToasts.length = 0;
     state.toastQueue.length = 0;
+    // The top-centre slot belongs to the timer; guidance.js owns the 'Next:' line.
+    hud.remove('objective');
     hud.clear();
     state.shown = false;
   }

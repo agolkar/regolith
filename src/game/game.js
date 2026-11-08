@@ -3,6 +3,8 @@
 // integrity, battery emergency reserve, win/lose, score formula, best save,
 // events, HUD updates, camera follow and pull-back, cutscene triggers,
 // and the objective banner that walks the player through the first cycle.
+// Guidance (beacons, HUD 'Next:' line, edge arrow, tutorial toasts) is owned
+// by guidance.js and wired here into the run lifecycle and getState().
 
 import * as THREE from 'three';
 import { clamp, lerp, damp } from '../engine/util.js';
@@ -16,6 +18,7 @@ import { createHazards } from './hazards.js';
 import { createHud } from './hud.js';
 import { createAudio } from './audio.js';
 import { createScreens } from './screens.js';
+import { createGuidance } from './guidance.js';
 
 // Reusable temporaries (never allocate inside update loops).
 const _tmp = new THREE.Vector3();
@@ -43,6 +46,7 @@ export function createGame(engine) {
   let hud = null;
   let sfx = null;
   let screens = null;
+  let guidance = null;
 
   // ---------------------------------------------------------------- run state
   const s = {
@@ -324,6 +328,9 @@ export function createGame(engine) {
     try { ui.hideAll(); } catch (e) { /* ignore */ }
     // Objective banner starts on the scoop step.
     setObjective(0);
+    // Guidance resets after the world, deposits, base and rover are fresh, so a
+    // new run starts with the tutorial again and the beacons re-targeted.
+    if (guidance) { try { guidance.start(); } catch (e) { /* ignore */ } }
   }
 
   function beginRun() {
@@ -496,15 +503,14 @@ export function createGame(engine) {
       if (effects) effects.printIgnite(base.printer.position);
       if (sfx) sfx.sfx(CONFIG.assets.audio.sfx.print);
     } else {
-      // Explain why the print did not start.
-      const feedstock = base.plant ? base.plant.feedstock : 0;
+      // Explain why the print did not start. The feedstock hint is owned by the
+      // guidance tutorial during the first cycle, so it is not repeated here.
       const printing = base.printer.printing && base.printer.printing.active;
       const pads = base.printer.pads || [];
       let occupied = 0;
       for (let i = 0; i < pads.length; i++) if (pads[i] && pads[i].module) occupied++;
       if (printing) toast(CONFIG.toast.printBusy, { ms: 2000 });
       else if (occupied >= pads.length) toast(CONFIG.toast.noPads, { ms: 2000 });
-      else toast(CONFIG.toast.noFeedstock, { ms: 2000 });
       sfxName(CONFIG.assets.audio.sfx.click);
     }
   }
@@ -755,6 +761,9 @@ export function createGame(engine) {
     // ---- objective banner (state-gated, not timer-gated)
     updateObjective();
 
+    // ---- guidance (after rover/base updates so hopper/feedstock/module state is current)
+    if (guidance) { try { guidance.update(dt); } catch (e) { /* guidance is best-effort */ } }
+
     // ---- emergency reserve
     if (s.power <= 0) {
       if (s.emergencyTimer < 0) s.emergencyTimer = CONFIG.battery.emergencyReserve;
@@ -873,6 +882,16 @@ export function createGame(engine) {
       sfx = createAudio(engine, CONFIG);
       screens = createScreens(engine, CONFIG);
 
+      // Guidance needs the world, deposits, base and rover to exist first.
+      guidance = createGuidance(engine, CONFIG, world, deposits, base, rover);
+      try { guidance.init(); } catch (e) { /* guidance is best-effort */ }
+      // guidance.init adds its group to the scene; make sure it is present.
+      if (guidance && guidance.group) {
+        try {
+          if (!guidance.group.parent) scene.add(guidance.group);
+        } catch (e) { /* ignore */ }
+      }
+
       loadBest();
       spawnInitialDeposits();
       setupCamera();
@@ -926,7 +945,7 @@ export function createGame(engine) {
 
     getState() {
       const p = rover ? rover.position : _tmp.set(0, 0, 0);
-      return {
+      const state = {
         scene: s.scene,
         score: Math.max(0, Math.round(safeNum(s.score, 0))),
         level: CONFIG.level,
@@ -950,7 +969,22 @@ export function createGame(engine) {
         best: Math.max(0, Math.round(safeNum(s.best, 0))),
         objectiveStep: clamp(Math.round(safeNum(s.objectiveStep, 0)), 0, OBJECTIVE_STEPS.length),
         objectiveText: s.objectiveText || '',
+        objective: '',
+        objectiveDistance: 0,
       };
+      // Merge guidance state (objective string, objectiveDistance metres).
+      if (guidance) {
+        try {
+          const g = guidance.getState();
+          if (g && typeof g === 'object') {
+            if (typeof g.objective === 'string') state.objective = g.objective;
+            state.objectiveDistance = Number.isFinite(g.objectiveDistance)
+              ? Math.max(0, g.objectiveDistance)
+              : 0;
+          }
+        } catch (e) { /* guidance is best-effort */ }
+      }
+      return state;
     },
   };
 }

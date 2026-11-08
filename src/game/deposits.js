@@ -2,15 +2,23 @@
 // Owns the deposit meshes, their capacities, depletion and removal, faint sparkle particles,
 // and the first-deposit beacon (pulsing amber ring + vertical light shaft) that guides the
 // player to the very first scoop.
+//
+// Every mound carries a thin permanent ring marker (cyan for normal, gold for rich) so it
+// reads on the grey surface at any distance. Rich mounds get a gold tint. Each list entry
+// exposes position, x, z, remaining, rich, radius, material and a sunlit flag for the
+// guidance system.
 
 import * as THREE from 'three';
-import { clamp } from '../engine/util.js';
+import { clamp, distXZ } from '../engine/util.js';
 import { CONFIG } from './config.js';
 
 // Reusable temporaries (never allocate inside update loops).
 const _tmp = new THREE.Vector3();
 const _tmp2 = new THREE.Vector3();
 const _scale = new THREE.Vector3();
+
+// Interaction radius of a deposit (metres) — used by guidance and the scoop range.
+const DEPOSIT_RADIUS = 3;
 
 export function createDeposits(engine, world, CONFIG) {
   const { scene, assets, fx, rng } = engine;
@@ -24,19 +32,42 @@ export function createDeposits(engine, world, CONFIG) {
   const coneGeo = new THREE.ConeGeometry(D.moundRadius, D.moundHeight * 1.15, 24, 3, false);
   const domeGeo = new THREE.SphereGeometry(D.moundRadius * 0.72, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.5);
 
+  // Paler, brighter regolith so mounds stand out against the grey surface.
   const normalMat = assets.material(CONFIG.assets.materials.regolith, {
     repeat: [2, 2],
     roughness: 0.95,
-    metalness: 0.02,
-    color: CONFIG.colors.regolith,
+    metalness: 0.0,
+    color: 0xd8d6cf,
+    emissive: 0x9a948c,
+    emissiveIntensity: 0.15,
   });
+  // Rich deposits get a gold tint.
   const richMat = assets.material(CONFIG.assets.materials.regolith, {
     repeat: [2, 2],
-    roughness: 0.72,
-    metalness: 0.04,
-    color: 0xd8d4c8,
-    emissive: 0x3a3833,
-    emissiveIntensity: 0.35,
+    roughness: 0.95,
+    metalness: 0.0,
+    color: 0xe8d9a8,
+    emissive: 0xc9a24a,
+    emissiveIntensity: 0.2,
+  });
+
+  // ---------------------------------------------------------------- permanent ring markers
+  // Thin flat ring around each mound, added to the mound group and removed with it on
+  // depletion. Two shared materials (cyan normal, gold rich). Always visible.
+  const markerGeo = new THREE.RingGeometry(2.6, 3.0, 40);
+  const markerNormalMat = new THREE.MeshBasicMaterial({
+    color: 0x00e5ff,
+    transparent: true,
+    opacity: 0.55,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  const markerRichMat = new THREE.MeshBasicMaterial({
+    color: 0xffd24a,
+    transparent: true,
+    opacity: 0.55,
+    side: THREE.DoubleSide,
+    depthWrite: false,
   });
 
   // ---------------------------------------------------------------- beacon (first scoop guide)
@@ -127,15 +158,40 @@ export function createDeposits(engine, world, CONFIG) {
     const s = rng.range(0.85, 1.15);
     mesh.scale.set(s, rng.range(0.85, 1.1), s);
 
+    // Permanent thin ring marker just above the terrain, in the mound's local frame.
+    const marker = new THREE.Mesh(markerGeo, rich ? markerRichMat : markerNormalMat);
+    marker.name = 'deposit-marker';
+    marker.rotation.x = -Math.PI * 0.5;
+    marker.position.set(0, 0.05, 0);
+    marker.castShadow = false;
+    marker.receiveShadow = false;
+    marker.frustumCulled = false;
+    mesh.add(marker);
+
     group.add(mesh);
+
+    // Sunlit flag: computed once at spawn from the world shadow query.
+    let sunlit = true;
+    try {
+      sunlit = world.isInShadow(x, z) === false;
+    } catch (e) {
+      sunlit = true;
+    }
 
     const deposit = {
       mesh,
       position: new THREE.Vector3(x, y, z),
+      x,
+      z,
       capacity,
       remaining: capacity,
       rich: !!rich,
+      radius: DEPOSIT_RADIUS,
+      material: mat,
+      sunlit,
       baseScale: s,
+      // Guidance helper: true when the mound sits in shadow.
+      isInShadow: !sunlit,
     };
     list.push(deposit);
     return deposit;
@@ -187,15 +243,31 @@ export function createDeposits(engine, world, CONFIG) {
   }
 
   // ---------------------------------------------------------------- nearest query
-  function nearest(position, radius) {
+  // nearest(position, radius)            — legacy: closest deposit with regolith left within radius.
+  // nearest(position, { requireRemaining, preferSunlit, radius }) — options overload.
+  // Depleted deposits are always skipped. The returned deposit carries .position (Vector3),
+  // .sunlit and .isInShadow so guidance can prefer sunlit mounds.
+  function nearest(position, optsOrRadius) {
     if (!position) return null;
-    const r = Number.isFinite(radius) ? radius : CONFIG.scoop.range;
-    const r2 = r * r;
+    let radius = CONFIG.scoop.range;
+    let requireRemaining = true;
+    let preferSunlit = false;
+    if (typeof optsOrRadius === 'number') {
+      if (Number.isFinite(optsOrRadius)) radius = optsOrRadius;
+    } else if (optsOrRadius && typeof optsOrRadius === 'object') {
+      if (Number.isFinite(optsOrRadius.radius)) radius = optsOrRadius.radius;
+      if (optsOrRadius.requireRemaining === false) requireRemaining = false;
+      if (optsOrRadius.preferSunlit === true) preferSunlit = true;
+    }
+    const r2 = radius * radius;
     let best = null;
     let bestD2 = r2;
+    let bestSun = null;
+    let bestSunD2 = r2;
     for (let i = 0; i < list.length; i++) {
       const d = list[i];
-      if (!d || d.remaining <= 0) continue;
+      if (!d) continue;
+      if (requireRemaining && d.remaining <= 0) continue;
       const dx = d.position.x - position.x;
       const dz = d.position.z - position.z;
       const d2 = dx * dx + dz * dz;
@@ -203,18 +275,26 @@ export function createDeposits(engine, world, CONFIG) {
         bestD2 = d2;
         best = d;
       }
+      if (d.sunlit && d2 <= bestSunD2) {
+        bestSunD2 = d2;
+        bestSun = d;
+      }
     }
+    if (preferSunlit && bestSun) return bestSun;
     return best;
   }
 
-  // Nearest un-depleted deposit regardless of radius (for the beacon).
-  function nearestAny(position) {
+  // Nearest deposit regardless of remaining (for guidance / the beacon).
+  // Optional preferSunlit flag lets guidance pick a sunlit mound first.
+  function nearestAny(position, preferSunlit) {
     if (!position) return null;
     let best = null;
     let bestD2 = Infinity;
+    let bestSun = null;
+    let bestSunD2 = Infinity;
     for (let i = 0; i < list.length; i++) {
       const d = list[i];
-      if (!d || d.remaining <= 0) continue;
+      if (!d) continue;
       const dx = d.position.x - position.x;
       const dz = d.position.z - position.z;
       const d2 = dx * dx + dz * dz;
@@ -222,7 +302,40 @@ export function createDeposits(engine, world, CONFIG) {
         bestD2 = d2;
         best = d;
       }
+      if (d.sunlit && d2 < bestSunD2) {
+        bestSunD2 = d2;
+        bestSun = d;
+      }
     }
+    if (preferSunlit && bestSun) return bestSun;
+    return best;
+  }
+
+  // Nearest deposit with regolith left, preferring sunlit mounds (guidance helper).
+  // Returns the deposit object (with .position Vector3, .sunlit, .isInShadow) or null.
+  function nearestWithRemaining(position, preferSunlit) {
+    if (!position) return null;
+    let best = null;
+    let bestD2 = Infinity;
+    let bestSun = null;
+    let bestSunD2 = Infinity;
+    for (let i = 0; i < list.length; i++) {
+      const d = list[i];
+      if (!d) continue;
+      if (d.remaining <= 0) continue;
+      const dx = d.position.x - position.x;
+      const dz = d.position.z - position.z;
+      const d2 = dx * dx + dz * dz;
+      if (d2 < bestD2) {
+        bestD2 = d2;
+        best = d;
+      }
+      if (d.sunlit && d2 < bestSunD2) {
+        bestSunD2 = d2;
+        bestSun = d;
+      }
+    }
+    if (preferSunlit && bestSun) return bestSun;
     return best;
   }
 
@@ -295,7 +408,7 @@ export function createDeposits(engine, world, CONFIG) {
 
     // Re-target if the current target is gone or depleted.
     if (!beaconTarget || beaconTarget.remaining <= 0) {
-      beaconTarget = nearestAny(roverPosition);
+      beaconTarget = nearestAny(roverPosition, true);
     }
     if (!beaconTarget) {
       beaconActive = false;
@@ -369,6 +482,7 @@ export function createDeposits(engine, world, CONFIG) {
     spawnFirst,
     nearest,
     nearestAny,
+    nearestWithRemaining,
     take,
     update,
     reset,

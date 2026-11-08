@@ -55,6 +55,13 @@
    "label": "R"
   },
   {
+   "action": "Show or hide the guide beams",
+   "keys": [
+    "KeyG"
+   ],
+   "label": "G"
+  },
+  {
    "action": "Pause / mute",
    "keys": [
     "KeyP",
